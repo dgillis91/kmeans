@@ -7,7 +7,9 @@ NOTES:
 """
 import numpy as np
 from scipy.spatial.distance import cityblock, euclidean
-import json, os
+import json
+import os
+import itertools
 
 
 def configfile(filename='default') -> dict:
@@ -26,9 +28,16 @@ def project_path() -> str:
     )
 
 
-metrics = {
+METRICS = {
     'manhattan': cityblock,
     'euclidean': euclidean
+}
+
+
+AGGR = {
+    'min': np.min,
+    'max': np.max,
+    'mean': np.mean
 }
 
 
@@ -67,7 +76,7 @@ class SimpleKMeans(KMeans):
         self.epochs = epochs
         self.max_iters = max_iters
         self._clusters = [None]
-        self.distance_metric = metrics.get(distance_metric)
+        self.distance_metric = METRICS.get(distance_metric)
         if self.distance_metric is None:
             raise ValueError('Invalid distance metric')
         if keep_training_history:
@@ -136,7 +145,7 @@ class BisectingKMeans(KMeans):
         self.k = k
         self.max_iters = max_iters
         self._clusters = [None]
-        self.distance_metric = metrics.get(distance_metric)
+        self.distance_metric = METRICS.get(distance_metric)
         if self.distance_metric is None:
             raise ValueError('Invalid distance metric')
 
@@ -157,6 +166,39 @@ class BisectingKMeans(KMeans):
 
     def predict(self, predictors):
         pass
+
+    def intra_cluster_metric(self, method='mean') -> float:
+        aggr = AGGR.get(method)
+        if aggr is None:
+            raise ValueError('Invalid method')
+        return aggr([
+            self.distance_metric(p_1, p_2)
+            for c_1, c_2 in itertools.combinations(self.clusters, 2)
+            for p_1, p_2 in itertools.product(c_1, c_2)
+        ])
+
+
+def clustering_report(manhattan: BisectingKMeans, euclidean: BisectingKMeans) -> None:
+    report_string = '''
+    MANHATTAN:
+        Intra-Cluster Distances
+        Max: {:.4f}
+        Min: {:.4f}
+        Mean: {:.4f}
+    EUCLIDEAN:
+        Intra-Cluster Distances
+        Max: {:.4f}
+        Min: {:.4f}
+        Mean: {:.4f}
+    '''.format(
+        manhattan.intra_cluster_metric('max'),
+        manhattan.intra_cluster_metric('min'),
+        manhattan.intra_cluster_metric('mean'),
+        euclidean.intra_cluster_metric('max'),
+        euclidean.intra_cluster_metric('min'),
+        euclidean.intra_cluster_metric('mean')
+    )
+    print(report_string)
 
 
 if __name__ == '__main__':
@@ -180,8 +222,10 @@ if __name__ == '__main__':
         if points.shape[1] < 2:
             points = np.hstack([points, np.zeros_like(points)])
         plt.plot(points[:, 0], points[:, 1], 'o')
+    plt.title = 'Euclidean'
     plt.show()
     sns.scatterplot(x[:, 0], x[:, 1], hue=y)
+    plt.title = 'Original Data'
     plt.show()
 
     manhattan_clusterer = BisectingKMeans(**config['clustering'], distance_metric='manhattan')
@@ -191,4 +235,7 @@ if __name__ == '__main__':
         if points.shape[1] < 2:
             points = np.hstack([points, np.zeros_like(points)])
         plt.plot(points[:, 0], points[:, 1], 'o')
+    plt.title = 'Manhattan'
     plt.show()
+
+    clustering_report(manhattan_clusterer, euclid_clusterer)
