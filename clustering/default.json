@@ -3,10 +3,10 @@
   "data":{
     "cluster_std": 10,
     "center_box": [-10, 100],
-    "centers": 2,
+    "centers": 4,
     "n_samples": 20
   },
   "clustering": {
-    "k": 2
+    "k": 4
   }
 }

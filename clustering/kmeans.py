@@ -7,6 +7,23 @@ NOTES:
 """
 import numpy as np
 from scipy.spatial.distance import cityblock, euclidean
+import json, os
+
+
+def configfile(filename='default') -> dict:
+    filename = filename + '.json'
+    filename = os.path.join(
+        project_path(), filename
+    )
+    with open(filename, 'r') as c:
+        cfg = json.loads(c.read())
+    return cfg
+
+
+def project_path() -> str:
+    return os.path.dirname(
+        os.path.abspath(__file__)
+    )
 
 
 metrics = {
@@ -147,15 +164,15 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt
     import seaborn as sns
 
-    np.random.seed(42)
+    config = configfile()
+    config['data']['center_box'] = tuple(config['data']['center_box'])
 
-    n_clusters = 4
+    np.random.seed(config['seed'])
 
     x, y = make_blobs(
-        n_samples=20, centers=n_clusters, center_box=(-1, 100),
-        cluster_std=10
+        **config['data']
     )
-    euclid_clusterer = BisectingKMeans(k=n_clusters)
+    euclid_clusterer = BisectingKMeans(**config['clustering'])
     euclid_clusterer.fit(predictors=x)
 
     for cluster in euclid_clusterer.clusters:
@@ -167,7 +184,7 @@ if __name__ == '__main__':
     sns.scatterplot(x[:, 0], x[:, 1], hue=y)
     plt.show()
 
-    manhattan_clusterer = BisectingKMeans(k=n_clusters, distance_metric='manhattan')
+    manhattan_clusterer = BisectingKMeans(**config['clustering'], distance_metric='manhattan')
     manhattan_clusterer.fit(predictors=x)
     for cluster in manhattan_clusterer.clusters:
         points = make_2d_array(cluster)
